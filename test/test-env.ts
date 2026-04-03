@@ -5,16 +5,37 @@ import path from "node:path";
 
 type RestoreEntry = { key: string; value: string | undefined };
 
+function isTruthyEnvValue(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+  switch (value.trim().toLowerCase()) {
+    case "":
+    case "0":
+    case "false":
+    case "no":
+    case "off":
+      return false;
+    default:
+      return true;
+  }
+}
+
 function restoreEnv(entries: RestoreEntry[]): void {
   for (const { key, value } of entries) {
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
   }
 }
 
 function loadProfileEnv(): void {
   const profilePath = path.join(os.homedir(), ".profile");
-  if (!fs.existsSync(profilePath)) return;
+  if (!fs.existsSync(profilePath)) {
+    return;
+  }
   try {
     const output = execFileSync(
       "/bin/bash",
@@ -24,15 +45,21 @@ function loadProfileEnv(): void {
     const entries = output.split("\0");
     let applied = 0;
     for (const entry of entries) {
-      if (!entry) continue;
+      if (!entry) {
+        continue;
+      }
       const idx = entry.indexOf("=");
-      if (idx <= 0) continue;
+      if (idx <= 0) {
+        continue;
+      }
       const key = entry.slice(0, idx);
-      if (!key || (process.env[key] ?? "") !== "") continue;
+      if (!key || (process.env[key] ?? "") !== "") {
+        continue;
+      }
       process.env[key] = entry.slice(idx + 1);
       applied += 1;
     }
-    if (applied > 0) {
+    if (applied > 0 && !isTruthyEnvValue(process.env.OPENCLAW_LIVE_TEST_QUIET)) {
       console.log(`[live] loaded ${applied} env vars from ~/.profile`);
     }
   } catch {
